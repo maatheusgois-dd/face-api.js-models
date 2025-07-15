@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Face Landmarks Demo</title>
+    <!-- 1) Load the library synchronously -->
+    <script src="js/face-api.min.js"></script>
+    <style>
+      body { margin: 0; }
+      video, canvas { position: absolute; top: 0; left: 0; }
+    </style>
+  </head>
+  <body>
+    <video id="video" width="720" height="560" autoplay muted></video>
+    <canvas id="overlay" width="720" height="560"></canvas>
+
+    <script>
+      // 2) Point to your local /models directory
+      const MODEL_URL_TINY = 'https://github.com/justadudewhohacks/face-api.js-models/raw/refs/heads/master/tiny_face_detector/';
+      const MODEL_URL_LANDMARK = 'https://github.com/justadudewhohacks/face-api.js-models/raw/refs/heads/master/face_landmark_68/';
+
+      // 3) Load models then start video
+      Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL_TINY),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL_LANDMARK)
+      ]).then(startVideo)
+       .catch(err => console.error(err));
+
+      function startVideo() {
+        navigator.mediaDevices
+          .getUserMedia({ video: {} })
+          .then(stream => (video.srcObject = stream))
+          .catch(console.error);
+      }
+
+      video.addEventListener('play', () => {
+        const canvas = overlay;
+        faceapi.matchDimensions(canvas, { width: 720, height: 560 });
+
+        setInterval(async () => {
+          const detections = await faceapi
+            .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+            .withFaceLandmarks();
+
+          const resized = faceapi.resizeResults(detections, { width: 720, height: 560 });
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          faceapi.draw.drawDetections(canvas, resized);
+          faceapi.draw.drawFaceLandmarks(canvas, resized);
+        }, 100);
+      });
+    </script>
+  </body>
+</html>
